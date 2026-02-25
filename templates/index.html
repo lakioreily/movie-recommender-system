@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filmski Vodič</title>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍿</text></svg>">
+
+    <style>
+        /* --- CSS DIZAJN --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: #16213e;
+            padding: 2.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            width: 500px;
+            text-align: center;
+            border: 1px solid #30475e;
+        }
+        h1 { color: #e94560; margin-bottom: 10px; font-size: 28px; }
+        p.subtitle { color: #a0a0a0; font-size: 14px; margin-bottom: 30px; }
+        
+        /* Input i Dugme */
+        .input-group { display: flex; gap: 10px; margin-bottom: 30px; }
+        input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #30475e;
+            background: #0f3460;
+            color: white;
+            outline: none;
+            transition: 0.3s;
+        }
+        input:focus { border-color: #e94560; }
+        button {
+            background-color: #e94560;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+        }
+        button:hover { background-color: #c1354e; transform: translateY(-2px); }
+
+        /* REZULTATI */
+        .results-container { text-align: left; display: none; }
+        
+        /* Sekcija: Istorija (Bledo/Sivo) */
+        .history-section {
+            background-color: rgba(15, 52, 96, 0.4);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px dashed #533440;
+        }
+        .history-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .history-tag {
+            display: inline-block;
+            background-color: #30475e;
+            color: #aaa;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin: 3px;
+            opacity: 0.8;
+        }
+
+        /* Sekcija: Preporuka (Jarko/Istaknuto) */
+        .rec-section { animation: slideUp 0.6s ease-out; }
+        .rec-title {
+            font-size: 18px;
+            color: #fff;
+            margin-bottom: 15px;
+            border-left: 4px solid #e94560;
+            padding-left: 10px;
+            line-height: 1.4;
+        }
+        .movie-card {
+            background: linear-gradient(45deg, #0f3460, #16213e);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 5px solid #e94560;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .error { color: #ff6b6b; margin-top: 10px; }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎬 Filmski Vodič</h1>
+        <p class="subtitle">Personalizovani sistem preporuke</p>
+        
+        <div class="input-group">
+            <input type="text" id="username" placeholder="Unesite ime (npr. Isa, Emir)..." />
+            <button onclick="getRecommendation()">Pretraži</button>
+        </div>
+
+        <div id="resultArea" class="results-container">
+            </div>
+    </div>
+
+    <script>
+        // --- JAVASCRIPT LOGIKA ---
+        async function getRecommendation() {
+            const username = document.getElementById('username').value;
+            const resultArea = document.getElementById('resultArea');
+            
+            if (!username) {
+                alert("Molimo unesite ime!");
+                return;
+            }
+
+            // Reset i Loading poruka
+            resultArea.style.display = 'block';
+            resultArea.innerHTML = '<p style="text-align:center; color:#888;">Analiziram profil korisnika...</p>';
+
+            try {
+                // Šaljemo zahtev na Python server
+                const response = await fetch('/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+
+                const data = await response.json();
+                resultArea.innerHTML = ''; // Čistimo loading poruku
+
+                if (data.error) {
+                    resultArea.innerHTML = `<p class="error">${data.error}</p>`;
+                    return;
+                }
+
+                // --- 1. ODREĐIVANJE TIPA KORISNIKA I NASLOVA ---
+                let recommendationTitle = "";
+                let historyHTML = "";
+
+                if (data.history && data.history.length > 0) {
+                    // STARI KORISNIK (ISA) - Ima istoriju
+                    recommendationTitle = "✨ Preporučujemo Vam (Na osnovu vašeg ukusa):";
+                    historyHTML = `
+                        <div class="history-section">
+                            <span class="history-title">Na osnovu vaših ranijih ocena:</span>
+                            <div>
+                                ${data.history.map(movie => `<span class="history-tag">${movie}</span>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // NOVI KORISNIK (EMIR - COLD START) - Nema istoriju
+                    recommendationTitle = "🔥 Preporučujemo Vam: Najbolje ocenjene filmove svih korisnika";
+                    historyHTML = `
+                        <div class="history-section">
+                            <span class="history-title">Status Profila:</span>
+                            <span class="history-tag" style="background:#4a4e69; color:white;">Novi korisnik (Nema istoriju)</span>
+                        </div>
+                    `;
+                }
+
+                // --- 2. GENERISANJE HTML-a ZA PREPORUKE ---
+                let recHTML = '';
+                if (data.movies && data.movies.length > 0) {
+                    recHTML = `
+                        <div class="rec-section">
+                            <h3 class="rec-title">${recommendationTitle}</h3>
+                            ${data.movies.map(movie => `<div class="movie-card">${movie}</div>`).join('')}
+                        </div>
+                    `;
+                } else {
+                    // Ako nema preporuka ili je stigla neka druga poruka
+                    recHTML = `<p style="text-align:center; margin-top:20px;">${data.message || 'Nema novih preporuka.'}</p>`;
+                }
+
+                // --- 3. SPAJANJE I PRIKAZ NA EKRANU ---
+                resultArea.innerHTML = historyHTML + recHTML;
+
+            } catch (error) {
+                console.error(error);
+                resultArea.innerHTML = '<p class="error">Došlo je do greške na serveru. Proverite da li je Python pokrenut.</p>';
+            }
+        }
+    </script>
+</body>
+</html>
